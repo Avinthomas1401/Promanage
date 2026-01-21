@@ -18,6 +18,12 @@ class LoginRequest(BaseModel):
     password: str
     role: str
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str
+
 class TaskCreate(BaseModel):
     title: str
     description: str
@@ -38,10 +44,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,6 +62,10 @@ def get_db():
 @app.get("/")
 def root():
     return {"message": "ProManage Backend Running"}
+
+from db import engine
+import models
+models.Base.metadata.create_all(bind=engine)
 
 # ---------------- TASK CRUD ----------------
 
@@ -192,17 +199,22 @@ def logout(user_id:int, db:Session=Depends(get_db)):
 # ---------------- REGISTER ----------------
 
 @app.post("/register/")
-def register(name:str, email:str, password:str, role:str, db:Session=Depends(get_db)):
+def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
-    if db.query(User).filter(User.email==email).first():
-        raise HTTPException(400,"User already exists")
+    if db.query(User).filter(User.email == data.email).first():
+        raise HTTPException(400, "User already exists")
 
-    new_user = User(name=name,email=email,password=password,role=role.lower())
+    new_user = User(
+        name=data.name,
+        email=data.email,
+        password=data.password,
+        role=data.role.lower()
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    return {"message":"User registered successfully"}
+    return {"message": "User registered successfully"}
 
 @app.post("/members/", response_model=MemberOut)
 def create_member(m: MemberCreate, db: Session = Depends(get_db)):
